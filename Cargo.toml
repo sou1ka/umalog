@@ -1,0 +1,19 @@
+[package]
+name = "umalog"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies.windows]
+version = "0.30"
+features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+]
+
+[dependencies]
+screenshots = "0.4.4"
+image = "0.24.2"
+imageproc = "0.23.0"
+chrono = "0.4.22"
