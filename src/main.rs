@@ -5,25 +5,27 @@ use windows::{
 };
 use screenshots::Screen;
 use std::fs;
-use std::fs::File;
 use std::fs::OpenOptions;
 use std::process::Command;
 use std::env;
 use std::result::Result;
-use std::io::{Error, self, Write};
+use std::io::{Error, Write};
 use std::{thread, time};
 use chrono::Local;
-use image::{DynamicImage, GrayImage};
 use imageproc::contrast::{otsu_level, threshold};
 use image::imageops::FilterType;
+use std::time::{Duration, Instant};
+
+//use regex::Regex; // toml -> regex = "1.6.0"
+
+mod ocr;
 
 fn main() {
-    let ten_millis = time::Duration::from_millis(500);
-    let now = time::Instant::now();
-    let outpath = &format!("out/{}.csv", Local::now().format("%Y%m%d%H%M%S"));
+    let sleeptime = time::Duration::from_millis(2000);
+    let outpath = &format!("out/{}.tsv", Local::now().format("%Y%m%d%H%M%S"));
     let mut paststats:Vec<String> = Vec::new();
-
-    let mut head:Vec<String> = vec![
+    let head:Vec<String> = vec![
+        String::from("時期"),
         String::from("スピード"),
         String::from("スタミナ"),
         String::from("パワー"),
@@ -41,12 +43,10 @@ fn main() {
     };
 
     loop {
-        thread::sleep(ten_millis);
   //      println!("{:?}", paststats);
-        let window_name = OsString::from("umamusume");
-        let id: HWND = unsafe { FindWindowW(PWSTR::default(), window_name) };
-
+        let id: HWND = unsafe { FindWindowW(PWSTR::default(), OsString::from("umamusume")) };
         let mut rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+
         if unsafe { GetWindowRect(id, &mut rect)} != false {
          //   println!("{:?}", rect);
             let left:i32 = rect.left;
@@ -60,17 +60,13 @@ fn main() {
         //    let buffer = image.buffer();
         //    fs::write("./temp/scr.png", &buffer).unwrap();
 
+//            let start = Instant::now();
             // 「育成」文字列
-            let image = scr.capture_area(left, (top+height/40), (width/4) as u32, (height/38) as u32).unwrap();
+            let image = scr.capture_area(left, top+height/40, (width/4) as u32, (height/38) as u32).unwrap();
             let buffer = image.buffer();
             fs::write("./temp/scr_head.png", &buffer).unwrap();
-
             let path = env::current_dir().unwrap();
-            let arg = &[format!("{}{}", path.to_string_lossy(), "\\temp\\scr_head.png")];
-            let output = Command::new("bin/ocr.exe").args(arg).output().expect("failed");
-            let str = String::from_utf8_lossy(&output.stdout).to_string();
-            let v:Vec<&str> = str.split_whitespace().collect();
-            let ikusei = v.join("");
+            let ikusei = get_text(&"\\temp\\scr_head.png");
         //    println!("{}", ikusei);
 
             // ステータス
@@ -82,54 +78,51 @@ fn main() {
             let _pad = (width/600);
 
             if (ikusei.starts_with("育成") && !ikusei.starts_with("育成完了")) || ikusei.starts_with("トレーニング") {
-                // ステータス
-            //    let image = scr.capture_area(left, (top + (height / 25 * 17)), (width) as u32, ((height / 25) - (height / 25 / 3 - 5)) as u32).unwrap();
-            //    let buffer = image.buffer();
-            //    fs::write("./temp/scr_status.png", &buffer).unwrap();
-            //    get_screenshot(scr,left, top + (height / 25 * 17)-1, (width) as u32, ((height / 23) - (height / 23 / 3)) as u32, 1, "./temp/scr_status.png");
-            //    let st = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status.png"));
-            //    println!("OCR: {}", st);
+                get_screenshot(scr,left+width/36*8, (top+height/19), (width/3) as u32, (height/40) as u32, 2, "./temp/scr_season.png");
+                let season = get_text("\\temp\\scr_season.png");
 
                 get_screenshot(scr,_l + _pad*3, y, _w-5, _h, 2, "./temp/scr_status_spd.png");
                 let mut spd = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_spd.png"));
-                if spd == "" {
+                if !is_status_str(&spd) {
                     y = (y+(height/20));
                     get_screenshot(scr, _l + _pad*5, y, _w-(_w/7), _h, 2, "./temp/scr_status_spd.png");
                     spd = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_spd.png"));
                 }
-                if spd == "" { continue; }
+                if !is_status_str(&spd) { continue; }
 
                 get_screenshot(scr,(_l + (_alp + (_pad*8) + (_w) as i32) * 1) as i32, y, (_w-6), _h, 2, "./temp/scr_status_stm.png");
                 let stm = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_stm.png"));
-                if stm == "" { continue; }
+                if !is_status_str(&stm) { continue; }
 
                 get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 2) as i32, y, (_w-4), _h, 2, "./temp/scr_status_pow.png");
                 let pow = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_pow.png"));
-                if pow == "" { continue; }
+                if !is_status_str(&pow) { continue; }
 
                 get_screenshot(scr,(_l + (_alp + (_pad*3) + (_w) as i32) * 3) as i32, y, (_w-2), _h, 2, "./temp/scr_status_men.png");
                 let men = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_men.png"));
-                if men == "" { continue; }
+                if !is_status_str(&men) { continue; }
 
                 get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 4) as i32, y, _w-4, _h, 2, "./temp/scr_status_int.png");
                 let int = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_int.png"));
-                if int == "" { continue; }
+                if !is_status_str(&int) { continue; }
 
                 get_screenshot(scr,(_l + (_alp - (_pad*2) + (_w) as i32) * 5) as i32, y, (_w + (_w/4)), (_h + (_h/3)), 2, "./temp/scr_status_skl.png");
                 let skl = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_skl.png"));
-                if skl == "" { continue; }
+                if !is_skillpt_str(&skl) { continue; }
 
             //    let mut stats:Vec<&str> = st.split_whitespace().collect();
             //    stats.push(&skl);
 
-                let stats: Vec<String> = vec![spd, stm, pow, men, int, skl];
-            //    println!("FULL: {:?}", stats);
+                let checker: Vec<String> = vec![spd.clone(), stm.clone(), pow.clone(), men.clone(), int.clone(), skl.clone()];
+            //    println!("FULL: {:?}", checker);
 
-                if paststats != stats {
-                    paststats = stats.to_vec();
+                if paststats != checker {
+                    paststats = checker.to_vec();
+                    let stats: Vec<String> = vec![season, spd, stm, pow, men, int, skl];
                     match file_append(outpath, stats) {
                         Ok(()) => {
-                            println!("appended.");
+ //                           let end = start.elapsed();
+ //                           println!("appended.[{}.{:3}sec]", end.as_secs(), end.subsec_nanos() / 1_000_000);
                             println!("{:?}", paststats);
                         }
                         Err(e) => {
@@ -139,30 +132,43 @@ fn main() {
                 }
 
             } else if ikusei.starts_with("育成完了") {
+                let mut results:Vec<String> = Vec::new();
+                results.push(String::from("育成完了"));
                 get_screenshot(scr,(left + width / 24 * 19) as i32, top + height / 24 * 7, _w + (_w/4), _h * 8, 2, "./temp/scr_status_comp.png");
-                let mut stats:Vec<String> = get_text_tesseract_v(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_comp.png"));
+                let stats:Vec<String> = get_text_tesseract_v(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_comp.png"));
                 
-                get_screenshot(scr,(left + (width / 24 * 5) - 8) as i32, top + height / 48 * 41, _w-_w/3, _h, 2, "./temp/scr_status_comp_skill.png");
-                let skill = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_comp_skill.png"));
-                stats.push(skill);
-                
-                match file_append(outpath, stats) {
-                    Ok(()) => {
-                        println!("Complete!");
-                        return;
+                if stats.len() == 5 {
+
+                    for s in stats {
+                        results.push(s);
                     }
-                    Err(e) => {
-                        println!("Error: {}", e);
-                    }
-                };
+
+                    get_screenshot(scr,(left + (width / 24 * 5) - 8) as i32, top + height / 48 * 41, _w-_w/3, _h, 2, "./temp/scr_status_comp_skill.png");
+                    let skill = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_comp_skill.png"));
+                    results.push(skill);
+                    
+                    match file_append(outpath, results) {
+                        Ok(()) => {
+                            println!("Complete!");
+                            return;
+                        }
+                        Err(e) => {
+                            println!("Error: {}", e);
+                        }
+                    };
+                }
+            } else {
+                thread::sleep(sleeptime);
             }
+        } else {
+            thread::sleep(sleeptime);
         }
     }
 }
 
 fn file_append(path: &str, val: Vec<String>) -> Result<(), Error> {
     let mut f = OpenOptions::new().create(true).append(true).open(path)?;
-    f.write_all((val.join(",")+"\n").as_bytes())?;
+    f.write_all((val.join("\t")+"\n").as_bytes())?;
     Ok(())
 }
 
@@ -177,29 +183,29 @@ fn get_screenshot(scr: Screen, x: i32, y: i32, w: u32, h: u32, mag: u32, path: &
     binarized_image.save(path).unwrap();
 }
 
-fn get_text(cmd: String) -> String {
-    let output = Command::new("bin/ocr.exe").args(&[format!("{}", cmd)]).output().expect("failed");
-    let str = String::from_utf8_lossy(&output.stdout).to_string();
- //   let v: Vec<&str> = str.split_whitespace().collect();
-    let cs: Vec<i32> = str.split_whitespace().filter_map(|k| k.parse().ok()).collect::<Vec<i32>>();
-    let mut ret:String = String::new();
+fn get_text(path: &str) -> String {
+    let cd = env::current_dir().unwrap();
+    let path = &format!("{}{}", cd.to_string_lossy(), path);
+    let str = ocr::get_ocr_text(path);
+    let v:Vec<&str> = str.split_whitespace().collect();
 
-    for c in cs {
-        ret += &c.to_string();
-    }
-
-    return ret;
+    return v.join("");
 }
 
 fn get_text_tesseract(cmd: String) -> String {
     let output = Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), "temp/ret".to_string(), "-l jpn".to_string()]).output().expect("failed");
     String::from_utf8_lossy(&output.stdout);
     let str = fs::read_to_string("temp/ret.txt");
-//    let v: Vec<&str> = str.split_whitespace().collect();
-    let cs: Vec<i32> = str.expect("REASON").split("").filter_map(|k| k.parse().ok()).collect::<Vec<i32>>();
+    let temp = str.expect("REASON").replace("O", "0").replace("o", "0").replace("H", "1").replace("z", "2").replace("Z", "2");
+//    let v: Vec<&str> = temp.split_whitespace().collect();
+    let v: Vec<i32> = temp.split("").filter_map(|k| k.parse().ok()).collect::<Vec<i32>>();
     let mut ret:String = String::new();
+//    let re = Regex::new(r"(\d+)").unwrap();
 
-    for c in cs {
+    for c in v {
+      //  let n:Vec<&str> = c.matches("01234567689").collect();
+      //  let cap = re.captures(c).unwrap();
+      //  println!("{:?}", cap);
         ret += &c.to_string();
     }
 
@@ -214,8 +220,41 @@ fn get_text_tesseract_v(cmd: String) -> Vec<String> {
     let mut ret = Vec::new();
 
     for s in v {
+        if !is_status_str(s) { continue; }
+
         ret.push(s.to_string());
     }
 
     return ret;
+}
+
+fn is_status_str(status: &str) -> bool {
+    if status == "" { return false; }
+
+    let n:Vec<&str> = status.matches(char::is_numeric).collect();
+    if status != n.join("") { return false; }
+
+    let cnt = status.chars().count();
+    if cnt > 4 { return false; }
+    if cnt < 2 { return false; }
+
+    let n:Vec<char> = status.chars().collect();
+    let first_str:String = n[0].to_string();
+    if cnt == 4 && first_str != "1" { return false; }
+    if cnt == 2 && first_str != "8" && first_str != "9" { return false; }
+ 
+    return true;
+}
+
+fn is_skillpt_str(skillpt: &str) -> bool {
+    if skillpt == "" { return false; }
+
+    let n:Vec<&str> = skillpt.matches(char::is_numeric).collect();
+    if skillpt != n.join("") { return false; }
+
+    let cnt = skillpt.chars().count();
+    if cnt > 4 { return false; }
+    if cnt < 3 { return false; }
+ 
+    return true;
 }
