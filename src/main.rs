@@ -8,6 +8,7 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::process::Command;
 use std::env;
+use std::path::Path;
 use std::result::Result;
 use std::io::{Error, Write};
 use std::{thread, time};
@@ -21,8 +22,13 @@ use std::time::{Duration, Instant};
 mod ocr;
 
 fn main() {
-    let sleeptime = time::Duration::from_millis(2000);
-    let outpath = &format!("out/{}.tsv", Local::now().format("%Y%m%d%H%M%S"));
+    let sleeptime = time::Duration::from_millis(500);
+    let args: Vec<String> = env::args().collect();
+    let mut outpath = format!("out/{}.tsv", Local::now().format("%Y%m%d%H%M%S"));
+    if args.len() == 2 {
+        outpath = env::args().nth(1).expect("");
+    }
+
     let mut paststats:Vec<String> = Vec::new();
     let head:Vec<String> = vec![
         String::from("時期"),
@@ -33,14 +39,19 @@ fn main() {
         String::from("賢さ"),
         String::from("スキルPt")
     ];
-    match file_append(outpath, head) {
-        Ok(()) => {
-            println!("Logging init. {}", outpath);
-        }
-        Err(e) => {
-            println!("Error: {}", e);
-        }
-    };
+
+    if !Path::new(&outpath).exists() {
+        match file_append(&outpath, head) {
+            Ok(()) => {
+                println!("Logging init. {}", outpath);
+            }
+            Err(e) => {
+                println!("Error: {}", e);
+            }
+        };
+    } else {
+        println!("Append file for {}", outpath);
+    }
 
     loop {
   //      println!("{:?}", paststats);
@@ -98,11 +109,11 @@ fn main() {
                 let pow = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_pow.png"));
                 if !is_status_str(&pow) { continue; }
 
-                get_screenshot(scr,(_l + (_alp + (_pad*3) + (_w) as i32) * 3) as i32, y, (_w-2), _h, 2, "./temp/scr_status_men.png");
+                get_screenshot(scr,(_l + (_alp + (_pad*4) + (_w) as i32) * 3) as i32, y, (_w-2), _h, 2, "./temp/scr_status_men.png");
                 let men = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_men.png"));
                 if !is_status_str(&men) { continue; }
 
-                get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 4) as i32, y, _w-4, _h, 2, "./temp/scr_status_int.png");
+                get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 4) as i32, y, _w-6, _h, 2, "./temp/scr_status_int.png");
                 let int = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_int.png"));
                 if !is_status_str(&int) { continue; }
 
@@ -119,7 +130,7 @@ fn main() {
                 if paststats != checker {
                     paststats = checker.to_vec();
                     let stats: Vec<String> = vec![season, spd, stm, pow, men, int, skl];
-                    match file_append(outpath, stats) {
+                    match file_append(&outpath, stats) {
                         Ok(()) => {
  //                           let end = start.elapsed();
  //                           println!("appended.[{}.{:3}sec]", end.as_secs(), end.subsec_nanos() / 1_000_000);
@@ -144,10 +155,17 @@ fn main() {
                     }
 
                     get_screenshot(scr,(left + (width / 24 * 5) - 8) as i32, top + height / 48 * 41, _w-_w/3, _h, 2, "./temp/scr_status_comp_skill.png");
-                    let skill = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_comp_skill.png"));
-                    results.push(skill);
+                    let mut skill = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_comp_skill.png"));
+                    if !is_skillpt_str(&skill) {
+                        skill = get_text("\\temp\\scr_status_comp_skill.png");
+                        println!("{}", skill);
+                    }
+                    if !is_skillpt_str(&skill) { continue; }
                     
-                    match file_append(outpath, results) {
+                    results.push(skill);
+                    println!("{:?}", results);
+                    
+                    match file_append(&outpath, results) {
                         Ok(()) => {
                             println!("Complete!");
                             return;
@@ -188,15 +206,16 @@ fn get_text(path: &str) -> String {
     let path = &format!("{}{}", cd.to_string_lossy(), path);
     let str = ocr::get_ocr_text(path);
     let v:Vec<&str> = str.split_whitespace().collect();
+    let r = v.join("").replace("音成", "育成");
 
-    return v.join("");
+    return r;
 }
 
 fn get_text_tesseract(cmd: String) -> String {
     let output = Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), "temp/ret".to_string(), "-l jpn".to_string()]).output().expect("failed");
     String::from_utf8_lossy(&output.stdout);
     let str = fs::read_to_string("temp/ret.txt");
-    let temp = str.expect("REASON").replace("O", "0").replace("o", "0").replace("H", "1").replace("z", "2").replace("Z", "2");
+    let temp = str.expect("REASON").replace("O", "0").replace("o", "0").replace("H", "1").replace("z", "2").replace("Z", "2").replace("?", "7");
 //    let v: Vec<&str> = temp.split_whitespace().collect();
     let v: Vec<i32> = temp.split("").filter_map(|k| k.parse().ok()).collect::<Vec<i32>>();
     let mut ret:String = String::new();
