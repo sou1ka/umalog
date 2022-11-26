@@ -14,7 +14,7 @@ use std::io::{Error, Write};
 use std::{thread, time};
 use chrono::Local;
 use imageproc::contrast::{otsu_level, threshold};
-use image::imageops::FilterType;
+use image::{imageops::FilterType, DynamicImage};
 use std::time::{Duration, Instant};
 
 //use regex::Regex; // toml -> regex = "1.6.0"
@@ -92,6 +92,8 @@ fn main() {
                 get_screenshot(scr,left+width/36*8, (top+height/19), (width/3) as u32, (height/40) as u32, 2, "./temp/scr_season.png");
                 let season = get_text("\\temp\\scr_season.png");
 
+                get_screenshot_grayscale(scr,left+width/30*5, (top+height/5+(_pad*6)), (width-(width/2)) as u32, (height/34) as u32, 2, "./temp/scr_ikusei_event.png");
+
                 get_screenshot(scr,_l + _pad*3, y, _w-5, _h, 2, "./temp/scr_status_spd.png");
                 let mut spd = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_spd.png"));
                 if !is_status_str(&spd) {
@@ -121,7 +123,7 @@ fn main() {
                 let skl = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_skl.png"));
                 if !is_skillpt_str(&skl) { continue; }
 
-            //    let mut stats:Vec<&str> = st.split_whitespace().collect();
+                //    let mut stats:Vec<&str> = st.split_whitespace().collect();
             //    stats.push(&skl);
 
                 let checker: Vec<String> = vec![spd.clone(), stm.clone(), pow.clone(), men.clone(), int.clone(), skl.clone()];
@@ -191,14 +193,25 @@ fn file_append(path: &str, val: Vec<String>) -> Result<(), Error> {
 }
 
 fn get_screenshot(scr: Screen, x: i32, y: i32, w: u32, h: u32, mag: u32, path: &str) {
-    let img = scr.capture_area(x, y, w, h).unwrap();
-    let img = image::load_from_memory(img.buffer());
-    let img = img.as_ref().expect("REASON");
-    let resize = img.resize(img.width()*mag, img.height()*mag, FilterType::Lanczos3);
-    let gray_image = resize.to_luma8();
+    let image = run_screenshot(scr, x, y, w, h, mag);
+    let gray_image = image.to_luma8();
     let otsu_level = imageproc::contrast::otsu_level(&gray_image);
     let binarized_image = imageproc::contrast::threshold(&gray_image, otsu_level);
     binarized_image.save(path).unwrap();
+}
+
+fn get_screenshot_grayscale(scr: Screen, x: i32, y: i32, w: u32, h: u32, mag: u32, path: &str) {
+    let image = run_screenshot(scr, x, y, w, h, mag);
+    let gray_image = image.to_luma8();
+    gray_image.save(path).unwrap();
+}
+
+fn run_screenshot(scr: Screen, x: i32, y: i32, w: u32, h: u32, mag: u32) -> DynamicImage {
+    let img = scr.capture_area(x, y, w, h).unwrap();
+    let img = image::load_from_memory(img.buffer());
+    let img = img.as_ref().unwrap();
+    let resize = img.resize(img.width()*mag, img.height()*mag, FilterType::Lanczos3);
+    return resize;
 }
 
 fn get_text(path: &str) -> String {

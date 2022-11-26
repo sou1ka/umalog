@@ -3,3 +3,5 @@
 /out/*
 .idea
 umalog.exe
+src/main_bak.rs
+src/main_bak2.rs
