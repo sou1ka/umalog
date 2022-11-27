@@ -97,34 +97,36 @@ fn main() {
                 let season = get_text(tempdir.clone() + "scr_season.png");
 
                 get_screenshot_grayscale(scr,left+width/30*5, (top+height/5+(_pad*6)), (width-(width/2)) as u32, (height/34) as u32, 2, tempdir.clone() + "scr_ikusei_event.png");
+                let event = get_text(tempdir.clone() + "scr_ikusei_event.png");
+                save_file(tempdir.clone() + "scr_ikusei_event.txt", event);
 
                 get_screenshot(scr,_l + _pad*3, y, _w-5, _h, 2, tempdir.clone() + "scr_status_spd.png");
-                let mut spd = get_text_tesseract(tempdir.clone() + "scr_status_spd.png");
+                let mut spd = get_text_tesseract(tempdir.clone() + "scr_status_spd.png", tempdir.clone());
                 if !is_status_str(&spd) {
                     y = (y+(height/20));
                     get_screenshot(scr, _l + _pad*5, y, _w-(_w/7), _h, 2, tempdir.clone() + "scr_status_spd.png");
-                    spd = get_text_tesseract(tempdir.clone() + "scr_status_spd.png");
+                    spd = get_text_tesseract(tempdir.clone() + "scr_status_spd.png", tempdir.clone());
                 }
                 if !is_status_str(&spd) { continue; }
 
                 get_screenshot(scr,(_l + (_alp + (_pad*8) + (_w) as i32) * 1) as i32, y, (_w-6), _h, 2, tempdir.clone() + "scr_status_stm.png");
-                let stm = get_text_tesseract(tempdir.clone() + "scr_status_stm.png");
+                let stm = get_text_tesseract(tempdir.clone() + "scr_status_stm.png", tempdir.clone());
                 if !is_status_str(&stm) { continue; }
 
                 get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 2) as i32, y, (_w-4), _h, 2, tempdir.clone() + "scr_status_pow.png");
-                let pow = get_text_tesseract(tempdir.clone() + "scr_status_pow.png");
+                let pow = get_text_tesseract(tempdir.clone() + "scr_status_pow.png", tempdir.clone());
                 if !is_status_str(&pow) { continue; }
 
                 get_screenshot(scr,(_l + (_alp + (_pad*4) + (_w) as i32) * 3) as i32, y, (_w-2), _h, 2, tempdir.clone() + "scr_status_men.png");
-                let men = get_text_tesseract(tempdir.clone() + "scr_status_men.png");
+                let men = get_text_tesseract(tempdir.clone() + "scr_status_men.png", tempdir.clone());
                 if !is_status_str(&men) { continue; }
 
                 get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 4) as i32, y, _w-6, _h, 2, tempdir.clone() + "scr_status_int.png");
-                let int = get_text_tesseract(tempdir.clone() + "scr_status_int.png");
+                let int = get_text_tesseract(tempdir.clone() + "scr_status_int.png", tempdir.clone());
                 if !is_status_str(&int) { continue; }
 
                 get_screenshot(scr,(_l + (_alp - (_pad*2) + (_w) as i32) * 5) as i32, y, (_w + (_w/4)), (_h + (_h/3)), 2, tempdir.clone() + "scr_status_skl.png");
-                let skl = get_text_tesseract(tempdir.clone() + "scr_status_skl.png");
+                let skl = get_text_tesseract(tempdir.clone() + "scr_status_skl.png", tempdir.clone());
                 if !is_skillpt_str(&skl) { continue; }
 
                 //    let mut stats:Vec<&str> = st.split_whitespace().collect();
@@ -152,7 +154,7 @@ fn main() {
                 let mut results:Vec<String> = Vec::new();
                 results.push(String::from("育成完了"));
                 get_screenshot(scr,(left + width / 24 * 19) as i32, top + height / 24 * 7, _w + (_w/4), _h * 8, 2, tempdir.clone() + "scr_status_comp.png");
-                let stats:Vec<String> = get_text_tesseract_v(tempdir.clone() + "scr_status_comp.png");
+                let stats:Vec<String> = get_text_tesseract_v(tempdir.clone() + "scr_status_comp.png", tempdir.clone());
                 
                 if stats.len() == 5 {
 
@@ -161,7 +163,7 @@ fn main() {
                     }
 
                     get_screenshot(scr,(left + (width / 24 * 5) - 8) as i32, top + height / 48 * 41, _w-_w/3, _h, 2, tempdir.clone() + "scr_status_comp_skill.png");
-                    let mut skill = get_text_tesseract(tempdir.clone() + "scr_status_comp_skill.png");
+                    let mut skill = get_text_tesseract(tempdir.clone() + "scr_status_comp_skill.png", tempdir.clone());
                     if !is_skillpt_str(&skill) {
                         skill = get_text(tempdir.clone() + "scr_status_comp_skill.png");
                         println!("{}", skill);
@@ -228,10 +230,10 @@ fn get_text(path: String) -> String {
     return r;
 }
 
-fn get_text_tesseract(cmd: String) -> String {
-    let output = Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), "temp/ret".to_string(), "-l jpn".to_string()]).output().expect("failed");
+fn get_text_tesseract(cmd: String, temppath: String) -> String {
+    let output = Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), temppath.clone() + "ret", "-l jpn".to_string()]).output().expect("failed");
 //    String::from_utf8_lossy(&output.stdout);
-    let str = fs::read_to_string("temp/ret.txt");
+    let str = fs::read_to_string(temppath + "ret.txt");
     let temp = str.expect("REASON").replace("O", "0").replace("o", "0").replace("H", "1").replace("z", "2").replace("Z", "2").replace("?", "7");
 //    let v: Vec<&str> = temp.split_whitespace().collect();
     let v: Vec<i32> = temp.split("").filter_map(|k| k.parse().ok()).collect::<Vec<i32>>();
@@ -248,10 +250,10 @@ fn get_text_tesseract(cmd: String) -> String {
     return ret;
 }
 
-fn get_text_tesseract_v(cmd: String) -> Vec<String> {
-    let output = Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), "temp/ret".to_string(), "-l jpn".to_string()]).output().expect("failed");
+fn get_text_tesseract_v(cmd: String, temppath: String) -> Vec<String> {
+    let output = Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), temppath.clone() + "ret", "-l jpn".to_string()]).output().expect("failed");
 //    String::from_utf8_lossy(&output.stdout);
-    let str = fs::read_to_string("temp/ret.txt").unwrap();
+    let str = fs::read_to_string(temppath + "ret.txt").unwrap();
     let v:Vec<&str> = str.split_whitespace().collect();
     let mut ret = Vec::new();
 
@@ -293,4 +295,9 @@ fn is_skillpt_str(skillpt: &str) -> bool {
     if cnt < 3 { return false; }
  
     return true;
+}
+
+fn save_file(path: String, output: String) {
+    let mut event_txt = fs::File::create(path).unwrap();
+    event_txt.write_all(output.as_bytes()).unwrap();
 }

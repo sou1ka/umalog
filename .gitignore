@@ -1,5 +1,6 @@
 /target
 /temp/*
+/temp_bak
 /out/*
 .idea
 umalog.exe
