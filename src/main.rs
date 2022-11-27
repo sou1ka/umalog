@@ -13,9 +13,8 @@ use std::result::Result;
 use std::io::{Error, Write};
 use std::{thread, time};
 use chrono::Local;
-use imageproc::contrast::{otsu_level, threshold};
+use imageproc::contrast;
 use image::{imageops::FilterType, DynamicImage};
-use std::time::{Duration, Instant};
 
 //use regex::Regex; // toml -> regex = "1.6.0"
 
@@ -24,6 +23,7 @@ mod ocr;
 fn main() {
     let sleeptime = time::Duration::from_millis(500);
     let args: Vec<String> = env::args().collect();
+    let tempdir = String::from(env::temp_dir().to_str().unwrap().to_string() + "umalog\\");
     let mut outpath = format!("out/{}.tsv", Local::now().format("%Y%m%d%H%M%S"));
     if args.len() == 2 {
         outpath = env::args().nth(1).expect("");
@@ -39,6 +39,10 @@ fn main() {
         String::from("賢さ"),
         String::from("スキルPt")
     ];
+
+    if !Path::new(&tempdir).exists() {
+        fs::create_dir_all(&tempdir);
+    }
 
     if !Path::new(&outpath).exists() {
         match file_append(&outpath, head) {
@@ -75,9 +79,9 @@ fn main() {
             // 「育成」文字列
             let image = scr.capture_area(left, top+height/40, (width/4) as u32, (height/38) as u32).unwrap();
             let buffer = image.buffer();
-            fs::write("./temp/scr_head.png", &buffer).unwrap();
-            let path = env::current_dir().unwrap();
-            let ikusei = get_text(&"\\temp\\scr_head.png");
+            fs::write(tempdir.clone() + "scr_head.png", &buffer).unwrap();
+        //    let path = env::current_dir().unwrap();
+            let ikusei = get_text(tempdir.clone() + "scr_head.png");
         //    println!("{}", ikusei);
 
             // ステータス
@@ -89,38 +93,38 @@ fn main() {
             let _pad = (width/600);
 
             if (ikusei.starts_with("育成") && !ikusei.starts_with("育成完了")) || ikusei.starts_with("トレーニング") {
-                get_screenshot(scr,left+width/36*8, (top+height/19), (width/3) as u32, (height/40) as u32, 2, "./temp/scr_season.png");
-                let season = get_text("\\temp\\scr_season.png");
+                get_screenshot(scr,left+width/36*8, (top+height/19), (width/3) as u32, (height/40) as u32, 2, tempdir.clone() + "scr_season.png");
+                let season = get_text(tempdir.clone() + "scr_season.png");
 
-                get_screenshot_grayscale(scr,left+width/30*5, (top+height/5+(_pad*6)), (width-(width/2)) as u32, (height/34) as u32, 2, "./temp/scr_ikusei_event.png");
+                get_screenshot_grayscale(scr,left+width/30*5, (top+height/5+(_pad*6)), (width-(width/2)) as u32, (height/34) as u32, 2, tempdir.clone() + "scr_ikusei_event.png");
 
-                get_screenshot(scr,_l + _pad*3, y, _w-5, _h, 2, "./temp/scr_status_spd.png");
-                let mut spd = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_spd.png"));
+                get_screenshot(scr,_l + _pad*3, y, _w-5, _h, 2, tempdir.clone() + "scr_status_spd.png");
+                let mut spd = get_text_tesseract(tempdir.clone() + "scr_status_spd.png");
                 if !is_status_str(&spd) {
                     y = (y+(height/20));
-                    get_screenshot(scr, _l + _pad*5, y, _w-(_w/7), _h, 2, "./temp/scr_status_spd.png");
-                    spd = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_spd.png"));
+                    get_screenshot(scr, _l + _pad*5, y, _w-(_w/7), _h, 2, tempdir.clone() + "scr_status_spd.png");
+                    spd = get_text_tesseract(tempdir.clone() + "scr_status_spd.png");
                 }
                 if !is_status_str(&spd) { continue; }
 
-                get_screenshot(scr,(_l + (_alp + (_pad*8) + (_w) as i32) * 1) as i32, y, (_w-6), _h, 2, "./temp/scr_status_stm.png");
-                let stm = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_stm.png"));
+                get_screenshot(scr,(_l + (_alp + (_pad*8) + (_w) as i32) * 1) as i32, y, (_w-6), _h, 2, tempdir.clone() + "scr_status_stm.png");
+                let stm = get_text_tesseract(tempdir.clone() + "scr_status_stm.png");
                 if !is_status_str(&stm) { continue; }
 
-                get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 2) as i32, y, (_w-4), _h, 2, "./temp/scr_status_pow.png");
-                let pow = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_pow.png"));
+                get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 2) as i32, y, (_w-4), _h, 2, tempdir.clone() + "scr_status_pow.png");
+                let pow = get_text_tesseract(tempdir.clone() + "scr_status_pow.png");
                 if !is_status_str(&pow) { continue; }
 
-                get_screenshot(scr,(_l + (_alp + (_pad*4) + (_w) as i32) * 3) as i32, y, (_w-2), _h, 2, "./temp/scr_status_men.png");
-                let men = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_men.png"));
+                get_screenshot(scr,(_l + (_alp + (_pad*4) + (_w) as i32) * 3) as i32, y, (_w-2), _h, 2, tempdir.clone() + "scr_status_men.png");
+                let men = get_text_tesseract(tempdir.clone() + "scr_status_men.png");
                 if !is_status_str(&men) { continue; }
 
-                get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 4) as i32, y, _w-6, _h, 2, "./temp/scr_status_int.png");
-                let int = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_int.png"));
+                get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 4) as i32, y, _w-6, _h, 2, tempdir.clone() + "scr_status_int.png");
+                let int = get_text_tesseract(tempdir.clone() + "scr_status_int.png");
                 if !is_status_str(&int) { continue; }
 
-                get_screenshot(scr,(_l + (_alp - (_pad*2) + (_w) as i32) * 5) as i32, y, (_w + (_w/4)), (_h + (_h/3)), 2, "./temp/scr_status_skl.png");
-                let skl = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_skl.png"));
+                get_screenshot(scr,(_l + (_alp - (_pad*2) + (_w) as i32) * 5) as i32, y, (_w + (_w/4)), (_h + (_h/3)), 2, tempdir.clone() + "scr_status_skl.png");
+                let skl = get_text_tesseract(tempdir.clone() + "scr_status_skl.png");
                 if !is_skillpt_str(&skl) { continue; }
 
                 //    let mut stats:Vec<&str> = st.split_whitespace().collect();
@@ -147,8 +151,8 @@ fn main() {
             } else if ikusei.starts_with("育成完了") {
                 let mut results:Vec<String> = Vec::new();
                 results.push(String::from("育成完了"));
-                get_screenshot(scr,(left + width / 24 * 19) as i32, top + height / 24 * 7, _w + (_w/4), _h * 8, 2, "./temp/scr_status_comp.png");
-                let stats:Vec<String> = get_text_tesseract_v(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_comp.png"));
+                get_screenshot(scr,(left + width / 24 * 19) as i32, top + height / 24 * 7, _w + (_w/4), _h * 8, 2, tempdir.clone() + "scr_status_comp.png");
+                let stats:Vec<String> = get_text_tesseract_v(tempdir.clone() + "scr_status_comp.png");
                 
                 if stats.len() == 5 {
 
@@ -156,10 +160,10 @@ fn main() {
                         results.push(s);
                     }
 
-                    get_screenshot(scr,(left + (width / 24 * 5) - 8) as i32, top + height / 48 * 41, _w-_w/3, _h, 2, "./temp/scr_status_comp_skill.png");
-                    let mut skill = get_text_tesseract(format!("{}{}", path.to_string_lossy(), "\\temp\\scr_status_comp_skill.png"));
+                    get_screenshot(scr,(left + (width / 24 * 5) - 8) as i32, top + height / 48 * 41, _w-_w/3, _h, 2, tempdir.clone() + "scr_status_comp_skill.png");
+                    let mut skill = get_text_tesseract(tempdir.clone() + "scr_status_comp_skill.png");
                     if !is_skillpt_str(&skill) {
-                        skill = get_text("\\temp\\scr_status_comp_skill.png");
+                        skill = get_text(tempdir.clone() + "scr_status_comp_skill.png");
                         println!("{}", skill);
                     }
                     if !is_skillpt_str(&skill) { continue; }
@@ -192,18 +196,18 @@ fn file_append(path: &str, val: Vec<String>) -> Result<(), Error> {
     Ok(())
 }
 
-fn get_screenshot(scr: Screen, x: i32, y: i32, w: u32, h: u32, mag: u32, path: &str) {
+fn get_screenshot(scr: Screen, x: i32, y: i32, w: u32, h: u32, mag: u32, path: String) {
     let image = run_screenshot(scr, x, y, w, h, mag);
     let gray_image = image.to_luma8();
     let otsu_level = imageproc::contrast::otsu_level(&gray_image);
     let binarized_image = imageproc::contrast::threshold(&gray_image, otsu_level);
-    binarized_image.save(path).unwrap();
+    binarized_image.save(path.as_str()).unwrap();
 }
 
-fn get_screenshot_grayscale(scr: Screen, x: i32, y: i32, w: u32, h: u32, mag: u32, path: &str) {
+fn get_screenshot_grayscale(scr: Screen, x: i32, y: i32, w: u32, h: u32, mag: u32, path: String) {
     let image = run_screenshot(scr, x, y, w, h, mag);
     let gray_image = image.to_luma8();
-    gray_image.save(path).unwrap();
+    gray_image.save(path.as_str()).unwrap();
 }
 
 fn run_screenshot(scr: Screen, x: i32, y: i32, w: u32, h: u32, mag: u32) -> DynamicImage {
@@ -214,10 +218,10 @@ fn run_screenshot(scr: Screen, x: i32, y: i32, w: u32, h: u32, mag: u32) -> Dyna
     return resize;
 }
 
-fn get_text(path: &str) -> String {
-    let cd = env::current_dir().unwrap();
-    let path = &format!("{}{}", cd.to_string_lossy(), path);
-    let str = ocr::get_ocr_text(path);
+fn get_text(path: String) -> String {
+//    let cd = env::current_dir().unwrap();
+//    let p = cd.to_string_lossy().to_string() + &path;
+    let str = ocr::get_ocr_text(&path.as_str());
     let v:Vec<&str> = str.split_whitespace().collect();
     let r = v.join("").replace("音成", "育成");
 
@@ -226,7 +230,7 @@ fn get_text(path: &str) -> String {
 
 fn get_text_tesseract(cmd: String) -> String {
     let output = Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), "temp/ret".to_string(), "-l jpn".to_string()]).output().expect("failed");
-    String::from_utf8_lossy(&output.stdout);
+//    String::from_utf8_lossy(&output.stdout);
     let str = fs::read_to_string("temp/ret.txt");
     let temp = str.expect("REASON").replace("O", "0").replace("o", "0").replace("H", "1").replace("z", "2").replace("Z", "2").replace("?", "7");
 //    let v: Vec<&str> = temp.split_whitespace().collect();
@@ -246,7 +250,7 @@ fn get_text_tesseract(cmd: String) -> String {
 
 fn get_text_tesseract_v(cmd: String) -> Vec<String> {
     let output = Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), "temp/ret".to_string(), "-l jpn".to_string()]).output().expect("failed");
-    String::from_utf8_lossy(&output.stdout);
+//    String::from_utf8_lossy(&output.stdout);
     let str = fs::read_to_string("temp/ret.txt").unwrap();
     let v:Vec<&str> = str.split_whitespace().collect();
     let mut ret = Vec::new();

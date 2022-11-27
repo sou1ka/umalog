@@ -32,16 +32,9 @@ fn ocr(bitmap: SoftwareBitmap) -> winrt::Result<winrt::HString> {
     return Ok(result.text()?);
 }
 
-fn get_ocr(path: &str) -> winrt::Result<winrt::HString> {
-    let bitmap = open_image(path)?;
-    let r = ocr(bitmap);
-
-    return r;
-}
-
 pub fn get_ocr_text(path: &str) -> String {
-    let ocr = get_ocr(path);
-    let text = format!("{:?}", ocr);
-    
-    return text.replace("Ok(", "").replace(")", "").trim().to_owned();
+    let bitmap = open_image(path).unwrap();
+    let text = ocr(bitmap).unwrap();
+
+    return text.to_string();
 }
