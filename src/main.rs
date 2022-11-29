@@ -107,33 +107,39 @@ fn main() {
                     get_screenshot(scr, _l + _pad*5, y, _w-(_w/7), _h, 2, tempdir.clone() + "scr_status_spd.png");
                     spd = get_text_tesseract(tempdir.clone() + "scr_status_spd.png", tempdir.clone());
                 }
+//                println!("{}", spd);
                 if !is_status_str(&spd) { continue; }
 
                 get_screenshot(scr,(_l + (_alp + (_pad*8) + (_w) as i32) * 1) as i32, y, (_w-6), _h, 2, tempdir.clone() + "scr_status_stm.png");
                 let stm = get_text_tesseract(tempdir.clone() + "scr_status_stm.png", tempdir.clone());
+//                println!("{}", stm);
                 if !is_status_str(&stm) { continue; }
 
                 get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 2) as i32, y, (_w-4), _h, 2, tempdir.clone() + "scr_status_pow.png");
                 let pow = get_text_tesseract(tempdir.clone() + "scr_status_pow.png", tempdir.clone());
+//                println!("{}", pow);
                 if !is_status_str(&pow) { continue; }
 
-                get_screenshot(scr,(_l + (_alp + (_pad*4) + (_w) as i32) * 3) as i32, y, (_w-2), _h, 2, tempdir.clone() + "scr_status_men.png");
+                get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 3) as i32, y, (_w-3), _h, 2, tempdir.clone() + "scr_status_men.png");
                 let men = get_text_tesseract(tempdir.clone() + "scr_status_men.png", tempdir.clone());
+//                println!("{}", men);
                 if !is_status_str(&men) { continue; }
 
                 get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 4) as i32, y, _w-6, _h, 2, tempdir.clone() + "scr_status_int.png");
                 let int = get_text_tesseract(tempdir.clone() + "scr_status_int.png", tempdir.clone());
+//                println!("{}", int);
                 if !is_status_str(&int) { continue; }
 
                 get_screenshot(scr,(_l + (_alp - (_pad*2) + (_w) as i32) * 5) as i32, y, (_w + (_w/4)), (_h + (_h/3)), 2, tempdir.clone() + "scr_status_skl.png");
                 let skl = get_text_tesseract(tempdir.clone() + "scr_status_skl.png", tempdir.clone());
+                println!("{}", skl);
                 if !is_skillpt_str(&skl) { continue; }
 
                 //    let mut stats:Vec<&str> = st.split_whitespace().collect();
             //    stats.push(&skl);
 
                 let checker: Vec<String> = vec![spd.clone(), stm.clone(), pow.clone(), men.clone(), int.clone(), skl.clone()];
-            //    println!("FULL: {:?}", checker);
+//                println!("FULL: {:?}", checker);
 
                 if paststats != checker {
                     paststats = checker.to_vec();
@@ -231,7 +237,7 @@ fn get_text(path: String) -> String {
 }
 
 fn get_text_tesseract(cmd: String, temppath: String) -> String {
-    let output = Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), temppath.clone() + "ret", "-l jpn".to_string()]).output().expect("failed");
+    let output = Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), temppath.clone() + "ret", "-l eng".to_string()]).output().expect("failed");
 //    String::from_utf8_lossy(&output.stdout);
     let str = fs::read_to_string(temppath + "ret.txt");
     let temp = str.expect("REASON").replace("O", "0").replace("o", "0").replace("H", "1").replace("z", "2").replace("Z", "2").replace("?", "7");
@@ -251,7 +257,7 @@ fn get_text_tesseract(cmd: String, temppath: String) -> String {
 }
 
 fn get_text_tesseract_v(cmd: String, temppath: String) -> Vec<String> {
-    let output = Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), temppath.clone() + "ret", "-l jpn".to_string()]).output().expect("failed");
+    let output = Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), temppath.clone() + "ret", "-l eng".to_string()]).output().expect("failed");
 //    String::from_utf8_lossy(&output.stdout);
     let str = fs::read_to_string(temppath + "ret.txt").unwrap();
     let v:Vec<&str> = str.split_whitespace().collect();
@@ -271,7 +277,7 @@ fn is_status_str(status: &str) -> bool {
 
     let n:Vec<&str> = status.matches(char::is_numeric).collect();
     if status != n.join("") { return false; }
-
+ 
     let cnt = status.chars().count();
     if cnt > 4 { return false; }
     if cnt < 2 { return false; }
@@ -279,8 +285,8 @@ fn is_status_str(status: &str) -> bool {
     let n:Vec<char> = status.chars().collect();
     let first_str:String = n[0].to_string();
     if cnt == 4 && first_str != "1" { return false; }
-    if cnt == 2 && first_str != "8" && first_str != "9" { return false; }
- 
+    if cnt == 2 && first_str != "7" && first_str != "8" && first_str != "9" { return false; }
+
     return true;
 }
 
