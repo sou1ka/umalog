@@ -13,10 +13,7 @@ use std::result::Result;
 use std::io::{Error, Write};
 use std::{thread, time};
 use chrono::Local;
-use imageproc::contrast;
 use image::{imageops::FilterType, DynamicImage};
-
-//use regex::Regex; // toml -> regex = "1.6.0"
 
 mod ocr;
 
@@ -41,7 +38,7 @@ fn main() {
     ];
 
     if !Path::new(&tempdir).exists() {
-        fs::create_dir_all(&tempdir);
+        fs::create_dir_all(&tempdir).unwrap();
     }
 
     if !Path::new(&outpath).exists() {
@@ -85,12 +82,12 @@ fn main() {
         //    println!("{}", ikusei);
 
             // ステータス
-            let mut y = (top+(height/25*17)+1);
+            let mut y = top+(height/25*17)+1;
             let _w:u32 = (width/10) as u32;
             let _h:u32 = ((height / 33) - (height / 33 / 3 - 2)) as u32;
             let _l = left + (width/10);
-            let _alp = (width/20);
-            let _pad = (width/600);
+            let _alp = width/20;
+            let _pad = width/600;
 
             if (ikusei.starts_with("育成") && !ikusei.starts_with("育成完了")) || ikusei.starts_with("トレーニング") {
                 get_screenshot(scr,left+width/36*8, (top+height/19), (width/3) as u32, (height/40) as u32, 2, tempdir.clone() + "scr_season.png");
@@ -103,7 +100,7 @@ fn main() {
                 get_screenshot(scr,_l + _pad*3, y, _w-5, _h, 2, tempdir.clone() + "scr_status_spd.png");
                 let mut spd = get_text_tesseract(tempdir.clone() + "scr_status_spd.png", tempdir.clone());
                 if !is_status_str(&spd) {
-                    y = (y+(height/20));
+                    y = y+(height/20);
                     get_screenshot(scr, _l + _pad*5, y, _w-(_w/7), _h, 2, tempdir.clone() + "scr_status_spd.png");
                     spd = get_text_tesseract(tempdir.clone() + "scr_status_spd.png", tempdir.clone());
                 }
@@ -120,7 +117,7 @@ fn main() {
 //                println!("{}", pow);
                 if !is_status_str(&pow) { continue; }
 
-                get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 3) as i32, y, (_w-3), _h, 2, tempdir.clone() + "scr_status_men.png");
+                get_screenshot(scr,(_l + (_alp + (_pad*5) + (_w) as i32) * 3) as i32, y, (_w-4), _h, 2, tempdir.clone() + "scr_status_men.png");
                 let men = get_text_tesseract(tempdir.clone() + "scr_status_men.png", tempdir.clone());
 //                println!("{}", men);
                 if !is_status_str(&men) { continue; }
@@ -132,7 +129,7 @@ fn main() {
 
                 get_screenshot(scr,(_l + (_alp - (_pad*2) + (_w) as i32) * 5) as i32, y, (_w + (_w/4)), (_h + (_h/3)), 2, tempdir.clone() + "scr_status_skl.png");
                 let skl = get_text_tesseract(tempdir.clone() + "scr_status_skl.png", tempdir.clone());
-                println!("{}", skl);
+//                println!("{}", skl);
                 if !is_skillpt_str(&skl) { continue; }
 
                 //    let mut stats:Vec<&str> = st.split_whitespace().collect();
@@ -237,7 +234,7 @@ fn get_text(path: String) -> String {
 }
 
 fn get_text_tesseract(cmd: String, temppath: String) -> String {
-    let output = Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), temppath.clone() + "ret", "-l eng".to_string()]).output().expect("failed");
+    Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), temppath.clone() + "ret", "-l eng".to_string()]).output().expect("failed");
 //    String::from_utf8_lossy(&output.stdout);
     let str = fs::read_to_string(temppath + "ret.txt");
     let temp = str.expect("REASON").replace("O", "0").replace("o", "0").replace("H", "1").replace("z", "2").replace("Z", "2").replace("?", "7");
@@ -257,7 +254,7 @@ fn get_text_tesseract(cmd: String, temppath: String) -> String {
 }
 
 fn get_text_tesseract_v(cmd: String, temppath: String) -> Vec<String> {
-    let output = Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), temppath.clone() + "ret", "-l eng".to_string()]).output().expect("failed");
+    Command::new("bin/Tesseract-OCR/tesseract.exe").args(&[format!("{}", cmd), temppath.clone() + "ret", "-l eng".to_string()]).output().expect("failed");
 //    String::from_utf8_lossy(&output.stdout);
     let str = fs::read_to_string(temppath + "ret.txt").unwrap();
     let v:Vec<&str> = str.split_whitespace().collect();
