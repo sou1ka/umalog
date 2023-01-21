@@ -89,7 +89,7 @@ fn main() {
             let _alp = width/20;
             let _pad = width/600;
 
-            if (ikusei.starts_with("育成") && !ikusei.starts_with("育成完了")) || ikusei.starts_with("トレーニング") {
+            if (ikusei.starts_with("育成") && !ikusei.starts_with("育成完")) || ikusei.starts_with("トレーニング") {
                 get_screenshot(scr,left+width/36*8, (top+height/19), (width/3) as u32, (height/40) as u32, 2, tempdir.clone() + "scr_season.png");
                 let season = get_text(tempdir.clone() + "scr_season.png");
 
@@ -153,7 +153,7 @@ fn main() {
                     };
                 }
 
-            } else if ikusei.starts_with("育成完了") {
+            } else if ikusei.starts_with("育成完") {
                 let mut results:Vec<String> = Vec::new();
                 results.push(String::from("育成完了"));
                 get_screenshot(scr,(left + width / 24 * 19) as i32, top + height / 24 * 7, _w + (_w/4), _h * 8, 2, tempdir.clone() + "scr_status_comp.png");
@@ -168,9 +168,15 @@ fn main() {
                     get_screenshot(scr,(left + (width / 24 * 5) - 8) as i32, top + height / 48 * 41, _w-_w/3, _h, 2, tempdir.clone() + "scr_status_comp_skill.png");
                     let mut skill = get_text_tesseract(tempdir.clone() + "scr_status_comp_skill.png", tempdir.clone());
                     if !is_skillpt_str(&skill) {
-                        skill = get_text(tempdir.clone() + "scr_status_comp_skill.png");
-                        println!("{}", skill);
+                        skill = get_text2num(tempdir.clone() + "scr_status_comp_skill.png");
+                        //println!("{}", skill);
                     }
+                    if !is_skillpt_str(&skill) { // グランドライブ以外
+                        get_screenshot(scr,(left + (width / 24 * 5) - 8) as i32, top + height / 48 * 41, _w+_w+(_w/3), _h, 2, tempdir.clone() + "scr_status_comp_skill.png");
+                        skill = get_text2num(tempdir.clone() + "scr_status_comp_skill.png");
+                        //println!("グラライ以外, {}", &skill);
+                    }
+                    //println!("{}", skill);
                     if !is_skillpt_str(&skill) { continue; }
                     
                     results.push(skill);
@@ -231,6 +237,18 @@ fn get_text(path: String) -> String {
     let r = v.join("").replace("音成", "育成");
 
     return r;
+}
+
+fn get_text2num(path: String) -> String {
+    let r = get_text(path);
+    let v: Vec<i32> = r.split("").filter_map(|k| k.parse().ok()).collect::<Vec<i32>>();
+    let mut ret:String = String::new();
+
+    for c in v {
+        ret += &c.to_string();
+    }
+
+    return ret;
 }
 
 fn get_text_tesseract(cmd: String, temppath: String) -> String {
