@@ -13,7 +13,7 @@ use std::result::Result;
 use std::io::{Error, Write};
 use std::{thread, time};
 use chrono::Local;
-use image::{imageops::FilterType, DynamicImage};
+use image::{imageops::FilterType, DynamicImage, Rgb};
 
 mod ocr;
 
@@ -42,7 +42,8 @@ fn initialize() -> (Duration, String, String, Vec<String>) {
         String::from("パワー"),
         String::from("根性"),
         String::from("賢さ"),
-        String::from("スキルPt")
+        String::from("スキルPt"),
+        String::from("やる気")
     ];
 
     if !Path::new(&tempdir).exists() {
@@ -78,19 +79,28 @@ fn umalog(sleeptime: Duration, tempdir: String, outpath: String, paststats: &mut
         let bottom:i32 = rect.bottom;
         let width:i32 = right-left;
         let height:i32 = bottom-top;
-        let scr = Screen::from_point(left, top).unwrap();
+        let screen = Screen::from_point(left, top);
+
+        if screen.is_none() {
+            return;
+        }
+
+        let scr = screen.unwrap();
     //    let image = scr.capture_area(left, top, width as u32, (height) as u32).unwrap();
     //    let buffer = image.buffer();
     //    fs::write("./temp/scr.png", &buffer).unwrap();
 
 //            let start = Instant::now();
         // 「育成」文字列
-        let image = scr.capture_area(left, top+height/40, (width/4) as u32, (height/38) as u32).unwrap();
-        let buffer = image.buffer();
-        fs::write(tempdir.clone() + "scr_head.png", &buffer).unwrap();
+    //    let image = scr.capture_area(left+10, top+33, (width/4) as u32, (height/38) as u32).unwrap();
+    //    let buffer = image.buffer();
+    //    fs::write(tempdir.clone() + "scr_head.png", &buffer).unwrap();
     //    let path = env::current_dir().unwrap();
+        get_screenshot(scr, left+10, top+33, (width/4) as u32, (height/38) as u32, 2, tempdir.clone() + "scr_head.png");
+    //    let resize = image::open(tempdir.clone() + "scr_head.png").unwrap().resize(560 as u32, 110 as u32, FilterType::Lanczos3);
+    //    resize.save(tempdir.clone() + "scr_head.png").unwrap();
         let ikusei = get_text(tempdir.clone() + "scr_head.png");
-    //    println!("{}", ikusei);
+    //    println!("{}", ikusei);println!("{}", width/4);
 
         // ステータス
         let mut y = top+(height/25*17)+1;
@@ -143,15 +153,20 @@ fn umalog(sleeptime: Duration, tempdir: String, outpath: String, paststats: &mut
 //                println!("{}", skl);
             if !is_skillpt_str(&skl) { return; }
 
+            get_screenshot_color(scr,(_l + (_alp + 18 + _w as i32) * 4) as i32, top+20+(height/25*3), 8, 8, 2, tempdir.clone() + "scr_status_con.png");
+            let con = get_condition(tempdir.clone() + "scr_status_con.png");
+//            println!("condition {}", con);
+            if &con == "" { return; }
+
             //    let mut stats:Vec<&str> = st.split_whitespace().collect();
         //    stats.push(&skl);
 
-            let checker: Vec<String> = vec![spd.clone(), stm.clone(), pow.clone(), men.clone(), int.clone(), skl.clone()];
+            let checker: Vec<String> = vec![spd.clone(), stm.clone(), pow.clone(), men.clone(), int.clone(), skl.clone(), con.clone()];
 //                println!("FULL: {:?}", checker);
 
             if *paststats != checker {
                 *paststats = checker;
-                let stats: Vec<String> = vec![season, spd, stm, pow, men, int, skl];
+                let stats: Vec<String> = vec![season, spd, stm, pow, men, int, skl, con];
                 match file_append(&outpath, stats) {
                     Ok(()) => {
 //                           let end = start.elapsed();
@@ -191,7 +206,8 @@ fn umalog(sleeptime: Duration, tempdir: String, outpath: String, paststats: &mut
                 if !is_skillpt_str(&skill) { return; }
                 
                 results.push(skill);
-                println!("{:?}", results);
+                //println!("{:?}", results);
+                results.push("".to_string()); // やる気
                 
                 match file_append(&outpath, results) {
                     Ok(()) => {
@@ -229,6 +245,11 @@ fn get_screenshot_grayscale(scr: Screen, x: i32, y: i32, w: u32, h: u32, mag: u3
     let image = run_screenshot(scr, x, y, w, h, mag);
     let gray_image = image.to_luma8();
     gray_image.save(path.as_str()).unwrap();
+}
+
+fn get_screenshot_color(scr: Screen, x: i32, y: i32, w: u32, h: u32, mag: u32, path: String) {
+    let image = run_screenshot(scr, x, y, w, h, mag);
+    image.save(path.as_str()).unwrap();
 }
 
 fn run_screenshot(scr: Screen, x: i32, y: i32, w: u32, h: u32, mag: u32) -> DynamicImage {
@@ -331,4 +352,36 @@ fn is_skillpt_str(skillpt: &str) -> bool {
 fn save_file(path: String, output: String) {
     let mut event_txt = fs::File::create(path).unwrap();
     event_txt.write_all(output.as_bytes()).unwrap();
+}
+
+fn get_rgb(path: String) -> Rgb<u8> {
+    let img = image::open(path).unwrap().to_rgb8();
+    return *img.get_pixel(5, 5);
+}
+
+fn get_condition(path: String) -> String {
+    let rgb = get_rgb(path);
+    let zekkocho: Rgb<u8> = image::Rgb([245, 127, 158]); //絶好調
+    let kocho: Rgb<u8> = image::Rgb([245, 170, 65]); // 好調
+    let futuu: Rgb<u8> = image::Rgb([245, 214, 24]); // 普通
+    let fucho: Rgb<u8> = image::Rgb([15, 171, 245]); // 不調
+    let zeffucho: Rgb<u8> = image::Rgb([200, 128, 245]); // 絶不調
+    let div: u8 = 10;
+    let mut res = String::from("");
+    //println!("RGB: {:?}", rgb);
+    //println!("{:?}", zekkocho[0] - div);
+
+    if rgb[0] >= (zekkocho[0]-div) && rgb[0] <= (zekkocho[0]+div) && rgb[1] >= (zekkocho[1]-div) && rgb[1] <= (zekkocho[1]+div) && rgb[2] >= (zekkocho[2]-div) && rgb[2] <= (zekkocho[2]+div) {
+        res = "絶好調".to_string();
+    } else if rgb[0] >= (kocho[0]-div) && rgb[0] <= (kocho[0]+div) && rgb[1] >= (kocho[1]-div) && rgb[1] <= (kocho[1]+div) && rgb[2] >= (kocho[2]-div) && rgb[2] <= (kocho[2]+div) {
+        res = "好調".to_string();
+    } else if rgb[0] >= (futuu[0]-div) && rgb[0] <= (futuu[0]+div) && rgb[1] >= (futuu[1]-div) && rgb[1] <= (futuu[1]+div) && rgb[2] >= (futuu[2]-div) && rgb[2] <= (futuu[2]+div) {
+        res = "普通".to_string();
+    } else if rgb[0] >= (fucho[0]-div) && rgb[0] <= (fucho[0]+div) && rgb[1] >= (fucho[1]-div) && rgb[1] <= (fucho[1]+div) && rgb[2] >= (fucho[2]-div) && rgb[2] <= (fucho[2]+div) {
+        res = "不調".to_string();
+    } else if rgb[0] >= (zeffucho[0]-div) && rgb[0] <= (zeffucho[0]+div) && rgb[1] >= (zeffucho[1]-div) && rgb[1] <= (zeffucho[1]+div) && rgb[2] >= (zeffucho[2]-div) && rgb[2] <= (zeffucho[2]+div) {
+        res = "絶不調".to_string();
+    }
+
+    return res;
 }
