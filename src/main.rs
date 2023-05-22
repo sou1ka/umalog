@@ -333,7 +333,7 @@ fn is_status_str(status: &str) -> bool {
     let n:Vec<char> = status.chars().collect();
     let first_str:String = n[0].to_string();
     if cnt == 4 && first_str != "1" { return false; }
-    if cnt == 2 && first_str != "7" && first_str != "8" && first_str != "9" { return false; }
+    if cnt == 2 && first_str != "5" && first_str != "6" && first_str != "7" && first_str != "8" && first_str != "9" { return false; }
 
     return true;
 }
